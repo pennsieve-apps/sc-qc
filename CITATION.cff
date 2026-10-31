@@ -1,0 +1,283 @@
+cff-version: "1.2.0"
+message: If you use this app, please cite it and the works it builds on, listed under references.
+type: software
+title: Single-cell QC
+abstract: Per-sample quality control of single-cell and single-nucleus RNA-seq (10x 3'/5', Flex, Multiome
+  RNA). Removes ambient RNA with CellBender when the raw droplet matrix is available, flags outlier cells by
+  median absolute deviations and a mitochondrial cap, detects doublets with Scrublet, removes the flagged
+  cells and log-normalizes, with per-cell tables and figures.
+authors:
+- name: Pennsieve (University of Pennsylvania)
+repository-code: https://github.com/pennsieve-apps/sc-qc
+license: Apache-2.0
+version: 0.1.0
+keywords:
+- single-cell
+- single-nucleus
+- transcriptomics
+- genomics
+- quality-control
+- ambient-rna
+- doublet-detection
+references:
+- type: article
+  title: Best practices for single-cell analysis across modalities
+  authors:
+  - family-names: Heumos
+    given-names: Lukas
+  - family-names: Schaar
+    given-names: Anna C.
+  - family-names: Lance
+    given-names: Christopher
+  - family-names: Litinetskaya
+    given-names: Anastasia
+  - family-names: Drost
+    given-names: Felix
+  - family-names: Zappia
+    given-names: Luke
+  - family-names: Lücken
+    given-names: Malte D.
+  - family-names: Strobl
+    given-names: Daniel C.
+  - family-names: Henao
+    given-names: Juan
+  - family-names: Curion
+    given-names: Fabiola
+  - name: Single-cell Best Practices Consortium
+  - family-names: Aliee
+    given-names: Hananeh
+  - family-names: Ansari
+    given-names: Meshal
+  - family-names: Badia-i-Mompel
+    given-names: Pau
+  - family-names: Büttner
+    given-names: Maren
+  - family-names: Dann
+    given-names: Emma
+  - family-names: Dimitrov
+    given-names: Daniel
+  - family-names: Dony
+    given-names: Leander
+  - family-names: Frishberg
+    given-names: Amit
+  - family-names: He
+    given-names: Dongze
+  - family-names: Hediyeh-zadeh
+    given-names: Soroor
+  - family-names: Hetzel
+    given-names: Leon
+  - family-names: Ibarra
+    given-names: Ignacio L.
+  - family-names: Jones
+    given-names: Matthew G.
+  - family-names: Lotfollahi
+    given-names: Mohammad
+  - family-names: Martens
+    given-names: Laura D.
+  - family-names: Müller
+    given-names: Christian L.
+  - family-names: Nitzan
+    given-names: Mor
+  - family-names: Ostner
+    given-names: Johannes
+  - family-names: Palla
+    given-names: Giovanni
+  - family-names: Patro
+    given-names: Rob
+  - family-names: Piran
+    given-names: Zoe
+  - family-names: Ramírez-Suástegui
+    given-names: Ciro
+  - family-names: Saez-Rodriguez
+    given-names: Julio
+  - family-names: Sarkar
+    given-names: Hirak
+  - family-names: Schubert
+    given-names: Benjamin
+  - family-names: Sikkema
+    given-names: Lisa
+  - family-names: Srivastava
+    given-names: Avi
+  - family-names: Tanevski
+    given-names: Jovan
+  - family-names: Virshup
+    given-names: Isaac
+  - family-names: Weiler
+    given-names: Philipp
+  - family-names: Schiller
+    given-names: Herbert B.
+  - family-names: Theis
+    given-names: Fabian J.
+  year: 2023
+  journal: Nature Reviews Genetics
+  volume: 24
+  issue: '8'
+  start: '550'
+  end: '572'
+  doi: 10.1038/s41576-023-00586-w
+  identifiers:
+  - type: other
+    value: 'pmid:37002403'
+    description: PubMed ID
+- type: article
+  title: Unsupervised removal of systematic background noise from droplet-based single-cell
+    experiments using CellBender
+  authors:
+  - family-names: Fleming
+    given-names: Stephen J.
+  - family-names: Chaffin
+    given-names: Mark D.
+  - family-names: Arduini
+    given-names: Alessandro
+  - family-names: Akkad
+    given-names: Amer-Denis
+  - family-names: Banks
+    given-names: Eric
+  - family-names: Marioni
+    given-names: John C.
+  - family-names: Philippakis
+    given-names: Anthony A.
+  - family-names: Ellinor
+    given-names: Patrick T.
+  - family-names: Babadi
+    given-names: Mehrtash
+  year: 2023
+  journal: Nature Methods
+  volume: 20
+  issue: '9'
+  start: '1323'
+  end: '1335'
+  doi: 10.1038/s41592-023-01943-7
+  identifiers:
+  - type: other
+    value: 'pmid:37550580'
+    description: PubMed ID
+- type: article
+  title: 'Scrublet: Computational Identification of Cell Doublets in Single-Cell Transcriptomic Data'
+  authors:
+  - family-names: Wolock
+    given-names: Samuel L.
+  - family-names: Lopez
+    given-names: Romain
+  - family-names: Klein
+    given-names: Allon M.
+  year: 2019
+  journal: Cell Systems
+  volume: 8
+  issue: '4'
+  start: '281'
+  end: 291.e9
+  doi: 10.1016/j.cels.2018.11.005
+  identifiers:
+  - type: other
+    value: 'pmid:30954476'
+    description: PubMed ID
+- type: article
+  title: 'SCANPY: large-scale single-cell gene expression data analysis'
+  authors:
+  - family-names: Wolf
+    given-names: F. Alexander
+  - family-names: Angerer
+    given-names: Philipp
+  - family-names: Theis
+    given-names: Fabian J.
+  year: 2018
+  journal: Genome Biology
+  volume: 19
+  issue: '1'
+  start: '15'
+  doi: 10.1186/s13059-017-1382-0
+  identifiers:
+  - type: other
+    value: 'pmid:29409532'
+    description: PubMed ID
+- type: article
+  title: 'anndata: Access and store annotated data matrices'
+  authors:
+  - family-names: Virshup
+    given-names: Isaac
+  - family-names: Rybakov
+    given-names: Sergei
+  - family-names: Theis
+    given-names: Fabian J.
+  - family-names: Angerer
+    given-names: Philipp
+  - family-names: Wolf
+    given-names: F. Alexander
+  year: 2024
+  journal: Journal of Open Source Software
+  volume: 9
+  issue: '101'
+  start: '4371'
+  doi: 10.21105/joss.04371
+- type: article
+  title: 'Transcriptome of the human C2 dorsal root ganglia in C1–2 arthrodesis surgery: insight for neck pain'
+  authors:
+  - family-names: Arendt-Tranholm
+    given-names: Asta
+  - family-names: Sankaranarayanan
+    given-names: Ishwarya
+  - family-names: Payne
+    given-names: Cathryn
+  - family-names: Mancilla Moreno
+    given-names: Marisol
+  - family-names: Mazhar
+    given-names: Khadijah
+  - family-names: Yap
+    given-names: Natalie
+  - family-names: Chiu
+    given-names: Abby P
+  - family-names: Barry
+    given-names: Allison
+  - family-names: Patel
+    given-names: Pooja J
+  - family-names: Inturi
+    given-names: Nikhil N
+  - family-names: Tavares-Ferreira
+    given-names: Diana
+  - family-names: Amin
+    given-names: Anubhav
+  - family-names: Karandikar
+    given-names: Mahesh
+  - family-names: Jarvik
+    given-names: Jeffrey G
+  - family-names: Turner
+    given-names: Judith A
+  - family-names: Hofstetter
+    given-names: Christoph P
+  - family-names: Curatolo
+    given-names: Michele
+  - family-names: Price
+    given-names: Theodore J
+  year: 2026
+  journal: Brain
+  volume: 149
+  issue: '4'
+  start: '1349'
+  end: '1364'
+  doi: 10.1093/brain/awaf370
+  identifiers:
+  - type: other
+    value: 'pmid:41032656'
+    description: PubMed ID
+  notes: Describes the demo data (published online 2025-10-01).
+- type: data
+  title: Single nucleus sequencing of human C2 dorsal root ganglia tissue from fusion surgeries
+  authors:
+  - family-names: Arendt-Tranholm
+    given-names: Asta
+    orcid: https://orcid.org/0000-0002-6997-0959
+  - family-names: Sankaranarayanan
+    given-names: Ishwarya
+    orcid: https://orcid.org/0000-0002-6765-0281
+  - family-names: Price
+    given-names: Theodore J
+    orcid: https://orcid.org/0000-0002-6971-6221
+  year: 2025
+  version: '1'
+  publisher:
+    name: SPARC Portal
+  doi: 10.26275/cxuf-ftav
+  url: https://discover.pennsieve.io/datasets/475/version/1
+  license: CC-BY-4.0
+  notes: Demo data (Pennsieve Discover dataset 475, version 1).

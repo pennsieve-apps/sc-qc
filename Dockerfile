@@ -16,7 +16,7 @@ COPY requirements.txt requirements-${TORCH_FLAVOUR}.txt /processor/
 RUN pip install --no-deps --only-binary=:all: \
         -r /processor/requirements.txt -r /processor/requirements-${TORCH_FLAVOUR}.txt \
     && find /usr/local/lib/python3.12/site-packages -name '*.pyc' -delete \
-    && find /usr/local/lib/python3.12/site-packages -path '*/torch/*' -prune -o -type d -name tests -prune -exec rm -rf {} + \
+    && find /usr/local/lib/python3.12/site-packages -path '*/torch/*' -prune -o -path '*/tables/*' -prune -o -type d -name tests -prune -exec rm -rf {} + \
     && rm -rf /usr/local/lib/python3.12/site-packages/torch/include
 
 COPY processor/ /processor/processor/

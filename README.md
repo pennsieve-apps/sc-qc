@@ -217,7 +217,7 @@ Measured in the linux/amd64 image under emulation on an M-series Mac (Docker Des
 
 | Input | Cells × genes | Wall time | Peak memory |
 |---|---|---|---|
-| drg-c2, 12 samples (≤ 3,000 nuclei each), no CellBender, platform link layout | 20,415 nuclei in all | 148 s | 2.81 GB |
+| drg-c2, 12 samples (≤ 3,000 nuclei each), no CellBender, platform link layout | 20,415 nuclei in all | 145 s | 2.84 GB |
 | CC0050 full (not subsampled), no CellBender | 19,372 × 18,099 (32 M non-zeros) | 164 s | 5.60 GB |
 | fixture, CellBender 5 epochs | 400 + 70,000 empty droplets × 300 | 51 s | 1.70 GB |
 

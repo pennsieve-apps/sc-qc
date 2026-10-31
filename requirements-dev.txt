@@ -3,7 +3,7 @@
 scanpy==1.12.5
 anndata==0.13.4
 scikit-image==0.26.0
-torch==2.15.0
+torch==2.14.1
 pyro-ppl==1.9.2
 tables==3.11.1
 dill==0.4.1
@@ -15,7 +15,7 @@ pandas==3.1.0
 h5py==3.16.0
 matplotlib==3.11.2
 pytest==9.2.0
-jsonschema==3.2.0
+jsonschema==4.26.0
 PyYAML==6.0.3
 cffconvert==2.0.0
 # CellBender without its report extras (Jupyter): pip install --no-deps cellbender==0.4.0

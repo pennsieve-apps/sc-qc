@@ -19,8 +19,8 @@ normalized the same way, so `sc-integrate` and everything after it starts from c
 For the computational analyst: per sample, streaming one `.h5ad` at a time, (1) CellBender
 `remove-background` on the raw droplet matrix (when linked, and on a GPU unless asked otherwise);
 (2) `scanpy.pp.calculate_qc_metrics` and median-absolute-deviation outlier flags as in the
-single-cell best-practices guide (Heumos et al. 2023), with a fixed mitochondrial cap suited to
-nuclei; (3) Scrublet (`scanpy.pp.scrublet`) on the cells that passed (2); (4) removal of the
+single-cell best-practices book (Heumos et al. 2023), with a fixed mitochondrial cap suited to
+nuclei instead of the book's rule; (3) Scrublet (`scanpy.pp.scrublet`) on the cells that passed (2); (4) removal of the
 flagged cells and `normalize_total` + `log1p`, with the counts in `layers`. Cells are only removed,
 never reordered; every gene is kept.
 
@@ -48,22 +48,31 @@ never reordered; every gene is kept.
 2. **QC metrics** on the counts that will be written (after ambient removal when it ran):
    `total_counts`, `n_genes_by_counts`, `pct_counts_mt`, `pct_counts_ribo`,
    `pct_counts_in_top_20_genes` (mito = `var["mt"]` from sc-prep, else `MT-`/`mt-`).
-3. **Outlier flags** (sc-best-practices, "Quality Control" chapter of Heumos et al. 2023): a cell
-   is an outlier when `log1p(total_counts)` or `log1p(n_genes_by_counts)` is more than `MADS` (5)
-   median absolute deviations from the sample's median, on either side (`low_counts`,
-   `high_counts`, `low_genes`, `high_genes`), or when its share of counts in the 20 most expressed
-   genes is more than `MADS` MADs above the median (`high_top20`). **Deviation from the guide:**
-   mitochondrial content is a fixed cap, `pct_counts_mt > MAX_PCT_MT` (5) → `high_mito`, instead of
-   the guide's "3 MADs or > 8 %". In nuclei the mitochondrial reads are cytoplasmic carry-over and
-   near zero for most nuclei, so a MAD cut on that narrow distribution would remove good nuclei;
-   5 % is the usual nuclei cap (whole cells: 10-20 %, more for muscle and heart).
+3. **Outlier flags**, as in the "Quality Control" chapter of the single-cell best-practices book
+   (https://www.sc-best-practices.org/preprocessing-visualization/quality-control/, the companion of
+   Heumos et al. 2023, following Germain et al. 2020): a cell is an outlier when
+   `log1p(total_counts)`, `log1p(n_genes_by_counts)` or `pct_counts_in_top_20_genes` is more than
+   `MADS` (5) median absolute deviations from the sample's median, on either side (the book's
+   `(5, "both")` for all three; reasons `low_counts`, `high_counts`, `low_genes`, `high_genes`,
+   `low_top20`, `high_top20`). When CellBender ran, the medians and MADs come from the cells it calls
+   cells (probability ≥ 0.5), so empty droplets among sc-prep's cells do not widen the cuts; every
+   cell is flagged against them.
+   **Deviation from the book:** its mitochondrial rule flags a cell when the logit of its
+   mitochondrial fraction is more than 3 MADs above the median **and** `pct_counts_mt > 8`. sc-qc
+   uses a fixed cap, `pct_counts_mt > MAX_PCT_MT` (5) → `high_mito`. The book's example is whole
+   cells; a nucleus has no cytoplasm, so its mitochondrial reads are carry-over from the
+   preparation. On the drg-c2 nuclei the per-sample median is 0.2-2.6 % and the 95th percentile
+   1.7-8.4 %, so the book's 8 % floor would keep nearly all of that tail. Set `MAX_PCT_MT` to 10-20
+   for whole cells, more for muscle and heart.
 4. **Doublets** (`DOUBLETS`): Scrublet (Wolock et al. 2019, scanpy's port) on the counts of the
    cells that passed 1-3, `expected_doublet_rate = DOUBLET_RATE`, `random_state = SEED`, its
    automatic threshold (the minimum between the two modes of the simulated doublets' scores). With
    `remove` (default) predicted doublets are removed (`doublet`); with `flag` they are kept with
    `obs["predicted_doublet"] = true`. Samples with fewer than 100 cells passing 1-3 are not scored.
-   Scrublet rather than scDblFinder (R) or SOLO (scvi-tools, a second model to train per sample):
-   it is BSD-licensed inside scanpy, needs no GPU, and the guide lists it among the methods to use.
+   Scrublet (Wolock et al. 2019), not the book's recommendation scDblFinder, because scDblFinder is
+   an R/Bioconductor package and these apps are Python-only; Scrublet ships inside scanpy (BSD),
+   needs no GPU and no second model per sample (SOLO in scvi-tools would). The book also warns not to
+   run doublet detection on data aggregated over batches, which sc-qc respects (one sample at a time).
 5. **Normalization.** `layers["counts"]` = the counts (int32, integers; ambient-corrected when
    CellBender ran), `X` = `log1p(normalize_total(target_sum = TARGET_SUM))` (10,000 for every
    sample, so samples share a scale), float32 CSR. **No highly variable genes and no gene
@@ -79,8 +88,11 @@ never reordered; every gene is kept.
 | `cells` | output | `cells/<sample_id>.h5ad`, `cells/provenance.json` | The kept cells; contract below. |
 | `qc` | output | `qc/*.csv`, `qc/*.png`, `qc/summary.json`, `qc/provenance.json` | Tables and figures, below. |
 
-Symlinks are followed; a file whose real path leaves `INPUT_DIR` (and the platform's own links at
-its top level) is skipped. A `.h5ad` that already went through sc-qc is refused (its `X` is not counts).
+Inputs are found through the workflow's shared `processor/safe_inputs.py` (vendored unchanged): the
+platform's links (entries of `INPUT_DIR` and of a real `INPUT_DIR/<port>/` folder) may point into an
+upstream output folder; deeper links that leave are skipped. Every `.h5ad` and `.raw.h5` is checked
+with `check_h5` (no external links, external storage or virtual datasets) before it is opened. A
+`.h5ad` that already went through sc-qc is refused (its `X` is not counts).
 
 ### `cells/<sample_id>.h5ad`
 
@@ -104,8 +116,8 @@ Everything sc-prep wrote for the kept cells, every gene, plus:
 | `AMBIENT_EPOCHS` | integer 1-1000 | `150` | CellBender training epochs (its recommended default). |
 | `AMBIENT_FPR` | number | `0.01` | CellBender `--fpr`: higher removes more background and more signal. |
 | `DOUBLETS` | `remove` \| `flag` | `remove` | Remove Scrublet's doublets or only flag them. |
-| `DOUBLET_RATE` | number | `0.05` | Scrublet's expected doublet rate (~0.8 % per 1,000 cells loaded on 10x Chromium). |
-| `MADS` | number | `5` | MADs for the count, gene and top-20 outlier flags (5 permissive, 3 strict). |
+| `DOUBLET_RATE` | number | `0.05` | Scrublet's expected doublet rate; it grows with the cells loaded per channel (see the 10x user guide of the chemistry). |
+| `MADS` | number | `5` | MADs for the count, gene and top-20 outlier flags, both sides (5 is the book's permissive value). |
 | `MAX_PCT_MT` | number 0-100 | `5` | Mitochondrial cap (nuclei 5; whole cells 10-20). |
 | `TARGET_SUM` | number | `10000` | Counts per cell before `log1p`. |
 | `SEED` | integer | `42` | Scrublet's random state. |
@@ -119,7 +131,7 @@ Bad values exit with code 2 before anything is read.
 
 One row per sample: `sample_id`, `n_cells_before`, `n_cells_after`, `pct_removed`,
 `n_removed_<reason>` for `ambient_empty`, `low_counts`, `high_counts`, `low_genes`, `high_genes`,
-`high_top20`, `high_mito`, `doublet` (a cell can fail several), `ambient_method` (`cellbender` or
+`low_top20`, `high_top20`, `high_mito`, `doublet` (a cell can fail several), `ambient_method` (`cellbender` or
 `none`), `ambient_status` (`cellbender`, `skipped`, `off`, `failed`), `ambient_note` (why),
 `median_ambient_fraction`, `n_genes`, `median_counts`, `median_genes`, `median_pct_mt` (of the kept
 cells), `doublet_threshold`, `n_predicted_doublets`, `status` (`ok` or `failed: <error>`).
@@ -151,7 +163,7 @@ Per sample × metric: `scale` (log1p or linear), `median`, `mad`, `lower`, `uppe
 `summary.json`: totals, removals by reason, samples with ambient removal, the `qc_summary.csv` rows.
 `provenance.json` (both outputs): `app`, `version`, `tools`, `parameters`, `inputs`, `skipped`,
 `started`, `finished`, `samples` (status, ambient details, timings), `peak_rss_mb`,
-`cgroup_memory_peak_mb`, `device`, `method`, and `citations` as `{doi, pmid, text}`.
+`cgroup_peak_mb`, `threads`, `device`, `method`, and `citations` as `{doi, pmid, text}`.
 
 ## Results on the demo data
 
@@ -160,7 +172,7 @@ through sc-prep 0.1.0 (seeded subsample to ≤ 3,000 nuclei per sample, 18,082-1
 sc-qc with the defaults on CPU (so no ambient removal: `ambient_method = none` for every sample).
 Outputs in `workflow-single-cell/data/work/drg-c2/qc/{cells,qc}/` for sc-integrate.
 
-| Sample | Nuclei before → after (% removed) | Median counts / genes / % mt (kept) | Removed: high counts / low genes / high genes / top-20 / mito / doublet | Scrublet threshold |
+| Sample | Nuclei before → after (% removed) | Median counts / genes / % mt (kept) | Removed: high counts / low genes / high genes / top-20 (both sides) / mito / doublet | Scrublet threshold |
 |---|---|---|---|---|
 | CC0009-DRGL | 1,265 → 1,100 (13.0 %) | 832 / 698 / 1.38 | 33 / 0 / 24 / 52 / 98 / 13 | 0.28 |
 | CC0021-DRGL | 1,593 → 1,509 (5.3 %) | 1,173 / 992 / 0.32 | 7 / 0 / 0 / 67 / 6 / 5 | 0.30 |
@@ -173,16 +185,16 @@ Outputs in `workflow-single-cell/data/work/drg-c2/qc/{cells,qc}/` for sc-integra
 | CC0033-DRGL | 371 → 328 (11.6 %) | 804 / 687 / 1.17 | 14 / 0 / 7 / 17 / 11 / 3 | 0.16 |
 | CC0037-DRGR | 3,000 → 2,862 (4.6 %) | 1,574 / 1,167 / 0.16 | 5 / 0 / 1 / 100 / 44 / 0 | 0.46 |
 | CC0048-DRGR | 3,000 → 2,520 (16.0 %) | 1,236 / 979 / 1.85 | 32 / 0 / 6 / 49 / 417 / 3 | 0.36 |
-| CC0050-DRGL | 3,000 → 2,809 (6.4 %) | 1,534 / 1,202 / 1.77 | 44 / 0 / 1 / 84 / 108 / 0 | 0.38 |
+| CC0050-DRGL | 3,000 → 2,808 (6.4 %) | 1,534 / 1,202 / 1.77 | 44 / 0 / 1 / 85 / 108 / 0 | 0.38 |
 
-20,415 → 18,439 nuclei (9.7 % removed). (Sample ids are `sam-UTD-<id>`.)
+20,415 → 18,438 nuclei (9.7 % removed). (Sample ids are `sam-UTD-<id>`.)
 
 - **Mitochondrial content** is the largest cause (1,252 nuclei): most samples have a median of 1-2.5 %
   and a tail above 5 % (CC0048: 14 % of nuclei above 5 %). Raise `MAX_PCT_MT` to keep more.
 - **Counts and genes**: nothing falls below the lower MAD cuts (Cell Ranger's cell calling already
   removed near-empty barcodes; the lower count cut is ~90 counts); 253 nuclei are above the upper
   count cut (more than ~13× the median), likely multiplets or debris clumps.
-- **Top-20 share** removes 593 nuclei (2.9 %) whose counts are dominated by a few genes.
+- **Top-20 share** removes 594 nuclei (2.9 %): 593 whose counts are dominated by a few genes, 1 below the lower cut.
 - **Doublets**: Scrublet calls few (59, 0.3 %), and on the larger samples its automatic threshold sits
   in the tail of the simulated scores (0.36-0.46), i.e. the simulated doublets are not bimodal.
   On a full, not subsampled, sample (CC0050, 19,372 nuclei) it called none. Flex can pool up to 16
@@ -196,7 +208,7 @@ Outputs in `workflow-single-cell/data/work/drg-c2/qc/{cells,qc}/` for sc-integra
 
 ## Runtime
 
-`computeTypes: [standard]` for the cpu variant (4 vCPU / 16 GiB, 8 h timeout); `[gpu]` with 14 GiB
+`computeTypes: [standard]` for the cpu variant (4 vCPU / 8 GiB, 8 h timeout); `[gpu]` with 14 GiB
 for the gpu variant. Samples are processed one at a time; memory follows the largest sample.
 
 Measured in the linux/amd64 image under emulation on an M-series Mac (Docker Desktop, `--cpus 2`,
@@ -205,13 +217,14 @@ Measured in the linux/amd64 image under emulation on an M-series Mac (Docker Des
 
 | Input | Cells × genes | Wall time | Peak memory |
 |---|---|---|---|
-| drg-c2, 12 samples (≤ 3,000 nuclei each), no CellBender | 20,415 nuclei in all | 139 s | 2.76 GB |
+| drg-c2, 12 samples (≤ 3,000 nuclei each), no CellBender, platform link layout | 20,415 nuclei in all | 148 s | 2.81 GB |
 | CC0050 full (not subsampled), no CellBender | 19,372 × 18,099 (32 M non-zeros) | 164 s | 5.60 GB |
 | fixture, CellBender 5 epochs | 400 + 70,000 empty droplets × 300 | 51 s | 1.70 GB |
 
 Memory grows with the cells of the largest sample (Scrublet simulates twice as many doublets and
-works on dense PCA input): about 5.6 GB at 19 k nuclei, so 16 GiB covers samples up to roughly
-50 k cells.
+works on dense PCA input). **Estimate** from the two measured points (2.8 GB at 3,000 nuclei, 5.6 GB at
+19,372): about 2.2 GB plus 0.17 GB per 1,000 cells (~5,900 cells per GiB above the base), so the
+8 GiB of the cpu variant covers samples up to about 35,000 cells; give larger samples more memory.
 
 **CellBender on CPU** (native arm64, 4 threads, sample CC0024: 9.5 k candidate droplets + 33 k
 empties × 15.6 k features): 12.5-14.8 s per training epoch, then the posterior took 40-50 min;
@@ -223,17 +236,19 @@ tens of minutes at most per 10x sample on a T4 at 150 epochs (an estimate, to be
 platform's first gpu run; the timeout is 8 h). CellBender writes a ~1 GB checkpoint
 into the run's temporary folder under `/tmp`, deleted after each sample.
 
-Images (`docker image inspect`): cpu 492 MB, gpu 3.28 GB (CUDA 13.2 PyTorch 2.15.0+cu132; builds and imports, `torch.cuda.is_available()` false here).
+Images (`docker image inspect`): cpu 478 MB, gpu 3.95 GB (PyTorch 2.14.1+cu126; builds and imports; here, without a GPU, it exits 1 with the startup error, as it should).
 
 ## Variants
 
 | Variant | Image | Compute | Ambient RNA by default |
 |---|---|---|---|
 | `cpu` (default) | CPU-only PyTorch | `standard` | no (`AMBIENT=auto` skips it; set `cellbender` to force) |
-| `gpu` | CUDA 13.2 PyTorch (NVIDIA driver ≥ 580, T4 or newer) | `gpu`, 14 GiB | yes |
+| `gpu` | PyTorch 2.14.1+cu126 (the platform's GPU nodes: NVIDIA driver 550, CUDA 12.4) | `gpu`, 14 GiB | yes |
 
 Both are built from the same `Dockerfile` (`TORCH_FLAVOUR=cpu|cuda`); parameters and ports are
-identical. The code picks the device with `torch.cuda.is_available()` and logs it.
+identical. At start the app checks PyTorch's device: the gpu image (`TORCH_FLAVOUR=cuda`) without a
+GPU logs an ERROR and exits 1 (it must never run CellBender on CPU for hours, or skip it); with a GPU it
+logs the device name, `torch.version.cuda` and the driver version.
 
 ## Running it locally
 
@@ -273,7 +288,8 @@ checks. Real input: `sample-input/README.md`.
 
 Apache-2.0 for this app (see `LICENSE`). Bundled components and their licences: `THIRD_PARTY.md`
 (CellBender BSD-3-Clause, PyTorch, Pyro Apache-2.0, scanpy BSD-3-Clause, …; NVIDIA CUDA libraries
-under the NVIDIA EULA in the gpu image only; no GPL code).
+under the NVIDIA EULA in the gpu image only; no GPL Python packages; the Debian base layer contains
+GPL system tools).
 
 ## Credits
 
@@ -284,10 +300,13 @@ under the NVIDIA EULA in the gpu image only; no GPL code).
 - **Scanpy** by F. Alexander Wolf, Philipp Angerer, Fabian J. Theis and the scverse community
   computes the QC metrics, runs Scrublet and normalizes.
 - **anndata** by Isaac Virshup and colleagues (scverse) reads and writes every `.h5ad`.
-- **The single-cell best-practices guide** by Lukas Heumos, Fabian J. Theis and the Single-cell Best
-  Practices Consortium sets the MAD-based outlier rules this app follows.
-- **PyTorch** (the PyTorch Foundation) and **Pyro** (Uber AI Labs and the Pyro team) run CellBender's
-  model; **scikit-image** provides Scrublet's automatic threshold.
+- **The single-cell best-practices book and review** by Lukas Heumos, Fabian J. Theis and the
+  Single-cell Best Practices Consortium set the MAD-based outlier rules this app follows; Pierre-Luc
+  Germain, Anthony Sonrel and Mark D. Robinson's pipeComp benchmark is where the book's 5-MAD rule
+  comes from.
+- **PyTorch** by Adam Paszke and colleagues and **Pyro** by Eli Bingham and colleagues run
+  CellBender's model; **scikit-image** by Stéfan van der Walt and the scikit-image contributors
+  provides Scrublet's automatic threshold.
 - **Demo data**: Asta Arendt-Tranholm, Ishwarya Sankaranarayanan and Theodore J. Price (University of
   Texas at Dallas) shared the C2 dorsal root ganglia nuclei on Pennsieve Discover (dataset 475).
 
@@ -311,6 +330,28 @@ under the NVIDIA EULA in the gpu image only; no GPL code).
 > modalities.** Nat Rev Genet 24(8):550-572 (2023). https://doi.org/10.1038/s41576-023-00586-w,
 > PMID 37002403.
 
+> Single-cell Best Practices Consortium. **Single-cell best practices: Quality Control** (online
+> book). https://www.sc-best-practices.org/preprocessing-visualization/quality-control/ (accessed
+> 2026-10-31; the book asks to be cited as Heumos et al. 2023, above).
+
+> Germain PL, Sonrel A, Robinson MD. **pipeComp, a general framework for the evaluation of
+> computational pipelines, reveals performant single cell RNA-seq preprocessing tools.** Genome
+> Biol 21(1):227 (2020). https://doi.org/10.1186/s13059-020-02136-7, PMID 32873325.
+
+> van der Walt S, Schönberger JL, Nunez-Iglesias J, Boulogne F, Warner JD, Yager N, Gouillart E,
+> Yu T, scikit-image contributors. **scikit-image: image processing in Python.** PeerJ 2:e453
+> (2014). https://doi.org/10.7717/peerj.453, PMID 25024921.
+
+> Paszke A, Gross S, Massa F, Lerer A, Bradbury J, Chanan G, Killeen T, Lin Z, Gimelshein N,
+> Antiga L, Desmaison A, Köpf A, Yang E, DeVito Z, Raison M, Tejani A, Chilamkurthy S, Steiner B,
+> Fang L, Bai J, Chintala S. **PyTorch: An Imperative Style, High-Performance Deep Learning
+> Library.** arXiv (2019). https://doi.org/10.48550/arXiv.1912.01703 (checked on DataCite).
+
+> Bingham E, Chen JP, Jankowiak M, Obermeyer F, Pradhan N, Karaletsos T, Singh R, Szerlip P,
+> Horsfall P, Goodman ND. **Pyro: Deep Universal Probabilistic Programming.** J Mach Learn Res
+> 20(28):1-6 (2019). https://jmlr.org/papers/v20/18-403.html (no DOI; preprint
+> https://doi.org/10.48550/arXiv.1810.09538, checked on DataCite and the JMLR page).
+
 > Wolf FA, Angerer P, Theis FJ. **SCANPY: large-scale single-cell gene expression data analysis.**
 > Genome Biol 19(1):15 (2018). https://doi.org/10.1186/s13059-017-1382-0, PMID 29409532.
 
@@ -331,7 +372,8 @@ Demo data:
 > https://doi.org/10.1093/brain/awaf370, PMID 41032656.
 
 Every paper was checked on Crossref (title, full author list and order, journal, volume, issue,
-pages) and PubMed (E-utilities `esearch` by DOI, then `esummary`: PMID, title, pages, DOI); the
+pages, ORCIDs) and PubMed (E-utilities `esearch` by DOI, then `esummary`: PMID, title, pages, DOI),
+the arXiv records on DataCite, Pyro's journal version on its JMLR page, the book on its own site; the
 dataset on DataCite (creators with ORCIDs, title, year, CC BY 4.0) and the Discover API (dataset 475,
 version 1, contributors, licence). Software licences were read from each package at its pinned
 version (CellBender's `LICENSE` in the 0.4.0 wheel). All are in `CITATION.cff`.

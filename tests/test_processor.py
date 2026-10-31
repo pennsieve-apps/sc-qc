@@ -109,7 +109,7 @@ def test_planted_cells_are_removed(fixture_root, tmp_path, monkeypatch, layout):
     js = json.loads((out / "qc" / "summary.json").read_text())
     assert js["n_ok"] == 2 and js["n_samples_ambient_removed"] == 0
     prov = json.loads((out / "qc" / "provenance.json").read_text())
-    assert prov["app"] == "sc-qc" and prov["version"] == "0.1.0" and prov["device"] == "cpu"
+    assert prov["app"] == "sc-qc" and prov["version"] == "0.1.0" and prov["device"].startswith("cpu")
     dois = {c["doi"] for c in prov["citations"]}
     assert "10.1016/j.cels.2018.11.005" in dois and "10.1038/s41592-023-01943-7" not in dois
     assert all(set(c) <= {"doi", "pmid", "text"} and c["text"] for c in prov["citations"])
@@ -169,7 +169,7 @@ def test_a_bad_sample_is_skipped(fixture_root, tmp_path, monkeypatch):
     out = tmp_path / "out"
     assert run(src, out, monkeypatch, AMBIENT="none") == 0
     prov = json.loads((out / "qc" / "provenance.json").read_text())
-    assert prov["n_failed"] == 1 and prov["n_ok"] == 1
+    assert prov["n_ok"] == 1 and "not a readable HDF5 file" in prov["skipped"]["cells/nuc_b.h5ad"]
     assert not (out / "cells" / "nuc_b.h5ad").exists()
 
 
@@ -183,6 +183,23 @@ def test_no_input_fails(tmp_path, monkeypatch):
     assert run(tmp_path / "in", tmp_path / "out", monkeypatch) == 1
 
 
+def test_platform_link_layout(fixture_root, tmp_path, monkeypatch):
+    """The platform's layout: real INPUT_DIR/<port>/ folders whose entries are symlinks into a sibling
+    upstream output folder (outside INPUT_DIR)."""
+    upstream = tmp_path / "workdir" / "sc-prep"
+    shutil.copytree(fixture_root["linked"], upstream)
+    src = tmp_path / "workdir" / "sc-qc" / "input"
+    for port in ("cells", "droplets"):
+        (src / port).mkdir(parents=True)
+        for f in (upstream / port).iterdir():
+            (src / port / f.name).symlink_to(f)
+    out = tmp_path / "out"
+    assert run(src, out, monkeypatch, AMBIENT="none") == 0
+    prov = json.loads((out / "qc" / "provenance.json").read_text())
+    assert prov["n_ok"] == 2 and sorted(prov["inputs"]) == ["cells/nuc_a.h5ad", "cells/nuc_b.h5ad", "droplets/nuc_a.raw.h5"]
+    assert prov["samples"][0]["raw"] == "droplets/nuc_a.raw.h5"
+
+
 def test_links_outside_input_are_skipped(fixture_root, tmp_path):
     from processor.inputs import discover
 
@@ -192,10 +209,33 @@ def test_links_outside_input_are_skipped(fixture_root, tmp_path):
     src = tmp_path / "in"
     (src / "cells" / "sub").mkdir(parents=True)
     shutil.copy(fixture_root["flat"] / "nuc_a.h5ad", src / "cells" / "nuc_a.h5ad")
-    (src / "cells" / "sub" / "nuc_c.h5ad").symlink_to(outside / "nuc_c.h5ad")
+    (src / "cells" / "sub" / "nuc_c.h5ad").symlink_to(outside / "nuc_c.h5ad")   # a deeper link that leaves
+    assert [s.sample_id for s in discover(src).samples] == ["nuc_a"]
+
+
+def test_hdf5_with_external_link_is_refused(fixture_root, tmp_path):
+    import h5py
+
+    from processor.inputs import discover
+
+    src = tmp_path / "in"
+    (src / "cells").mkdir(parents=True)
+    shutil.copy(fixture_root["flat"] / "nuc_a.h5ad", src / "cells" / "nuc_a.h5ad")
+    shutil.copy(fixture_root["flat"] / "nuc_b.h5ad", src / "cells" / "nuc_b.h5ad")
+    with h5py.File(src / "cells" / "nuc_b.h5ad", "a") as f:
+        f["leak"] = h5py.ExternalLink("/etc/hosts", "/")
     found = discover(src)
     assert [s.sample_id for s in found.samples] == ["nuc_a"]
-    assert found.skipped == {"cells/sub/nuc_c.h5ad": "links outside INPUT_DIR"}
+    assert "external link" in found.skipped["cells/nuc_b.h5ad"]
+
+
+def test_gpu_image_without_gpu_fails(fixture_root, tmp_path, monkeypatch):
+    import torch
+
+    if torch.cuda.is_available():
+        pytest.skip("a GPU is present")
+    monkeypatch.setenv("TORCH_FLAVOUR", "cuda")
+    assert run(fixture_root["linked"], tmp_path / "out", monkeypatch, AMBIENT="none") == 1
 
 
 def test_mad_flags():
@@ -215,3 +255,20 @@ def test_mad_flags():
     assert thr.rows[0]["lower"] == pytest.approx(np.expm1(med - 5 * mad))
     assert flags.any(axis=1).sum() <= 15
     assert Q.reasons_of(flags)["0"] == "low_counts;low_genes"
+
+
+def test_mad_basis_and_two_sided_top20():
+    """MADs come from the `basis` cells only (CellBender's cells); the top-20 share is cut on both sides."""
+    rng = np.random.default_rng(1)
+    n = 600
+    counts = np.exp(rng.normal(8, 0.2, n))
+    counts[:200] = np.exp(rng.normal(6.6, 0.1, 200))     # empty droplets among the cells
+    top20 = rng.normal(30, 2, n)
+    top20[300] = 2
+    metrics = pd.DataFrame({"total_counts": counts, "n_genes_by_counts": counts / 3, "pct_counts_in_top_20_genes": top20,
+                            "pct_counts_mt": np.ones(n)}, index=[str(i) for i in range(n)])
+    basis = np.arange(n) >= 200
+    flags, _ = Q.flag(metrics, {"MADS": 5.0, "MAX_PCT_MT": 5.0}, basis)
+    assert flags["low_counts"][:200].all() and flags.loc["300", "low_top20"]
+    wide, _ = Q.flag(metrics, {"MADS": 5.0, "MAX_PCT_MT": 5.0})
+    assert wide["low_counts"].sum() < 200          # without the basis the empties widen the MAD

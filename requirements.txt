@@ -32,7 +32,7 @@ cycler==0.12.1
 donfig==0.8.1.post1
 executing==2.3.0
 fast-array-utils==1.5.1
-filelock==4.2.5
+filelock==4.2.6
 fonttools==4.68.0
 formulaic==1.2.2
 fsspec==2026.9.0

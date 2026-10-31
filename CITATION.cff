@@ -25,24 +25,31 @@ references:
   authors:
   - family-names: Heumos
     given-names: Lukas
+    orcid: https://orcid.org/0000-0002-8937-3457
   - family-names: Schaar
     given-names: Anna C.
+    orcid: https://orcid.org/0000-0003-1063-005X
   - family-names: Lance
     given-names: Christopher
+    orcid: https://orcid.org/0000-0002-1275-9802
   - family-names: Litinetskaya
     given-names: Anastasia
   - family-names: Drost
     given-names: Felix
+    orcid: https://orcid.org/0000-0002-2600-4048
   - family-names: Zappia
     given-names: Luke
+    orcid: https://orcid.org/0000-0001-7744-8565
   - family-names: Lücken
     given-names: Malte D.
+    orcid: https://orcid.org/0000-0001-7464-7921
   - family-names: Strobl
     given-names: Daniel C.
   - family-names: Henao
     given-names: Juan
   - family-names: Curion
     given-names: Fabiola
+    orcid: https://orcid.org/0000-0003-2502-8803
   - name: Single-cell Best Practices Consortium
   - family-names: Aliee
     given-names: Hananeh
@@ -102,12 +109,14 @@ references:
     given-names: Jovan
   - family-names: Virshup
     given-names: Isaac
+    orcid: https://orcid.org/0000-0002-1710-8945
   - family-names: Weiler
     given-names: Philipp
   - family-names: Schiller
     given-names: Herbert B.
   - family-names: Theis
     given-names: Fabian J.
+    orcid: https://orcid.org/0000-0002-2419-1943
   year: 2023
   journal: Nature Reviews Genetics
   volume: 24
@@ -125,10 +134,13 @@ references:
   authors:
   - family-names: Fleming
     given-names: Stephen J.
+    orcid: https://orcid.org/0000-0002-1885-4405
   - family-names: Chaffin
     given-names: Mark D.
+    orcid: https://orcid.org/0000-0002-1234-5562
   - family-names: Arduini
     given-names: Alessandro
+    orcid: https://orcid.org/0000-0002-0038-8741
   - family-names: Akkad
     given-names: Amer-Denis
   - family-names: Banks
@@ -139,8 +151,10 @@ references:
     given-names: Anthony A.
   - family-names: Ellinor
     given-names: Patrick T.
+    orcid: https://orcid.org/0000-0002-2067-0533
   - family-names: Babadi
     given-names: Mehrtash
+    orcid: https://orcid.org/0000-0003-1829-8397
   year: 2023
   journal: Nature Methods
   volume: 20
@@ -172,15 +186,162 @@ references:
   - type: other
     value: 'pmid:30954476'
     description: PubMed ID
+- type: website
+  title: 'Single-cell best practices: Quality Control'
+  authors:
+  - name: Single-cell Best Practices Consortium
+  url: https://www.sc-best-practices.org/preprocessing-visualization/quality-control/
+  notes: Online book accompanying Heumos et al. 2023 (which it asks to be cited); source of the 5-MAD outlier rules
+    (log1p total counts, log1p genes, top-20-gene share, both sides) and its mitochondrial rule (3 MADs on the logit
+    mitochondrial fraction and > 8 %).
+- type: article
+  title: pipeComp, a general framework for the evaluation of computational pipelines, reveals performant
+    single cell RNA-seq preprocessing tools
+  authors:
+  - family-names: Germain
+    given-names: Pierre-Luc
+    orcid: https://orcid.org/0000-0003-3418-4218
+  - family-names: Sonrel
+    given-names: Anthony
+  - family-names: Robinson
+    given-names: Mark D.
+  year: 2020
+  journal: Genome Biology
+  volume: 21
+  issue: '1'
+  start: '227'
+  doi: 10.1186/s13059-020-02136-7
+  identifiers:
+  - type: other
+    value: 'pmid:32873325'
+    description: PubMed ID
+- type: article
+  title: 'scikit-image: image processing in Python'
+  authors:
+  - family-names: van der Walt
+    given-names: Stéfan
+  - family-names: Schönberger
+    given-names: Johannes L.
+  - family-names: Nunez-Iglesias
+    given-names: Juan
+  - family-names: Boulogne
+    given-names: François
+  - family-names: Warner
+    given-names: Joshua D.
+  - family-names: Yager
+    given-names: Neil
+  - family-names: Gouillart
+    given-names: Emmanuelle
+  - family-names: Yu
+    given-names: Tony
+  - name: scikit-image contributors
+  year: 2014
+  journal: PeerJ
+  volume: 2
+  start: e453
+  doi: 10.7717/peerj.453
+  identifiers:
+  - type: other
+    value: 'pmid:25024921'
+    description: PubMed ID
+  notes: Scrublet's automatic doublet threshold (skimage.filters.threshold_minimum).
+- type: article
+  title: 'PyTorch: An Imperative Style, High-Performance Deep Learning Library'
+  authors:
+  - family-names: Paszke
+    given-names: Adam
+  - family-names: Gross
+    given-names: Sam
+  - family-names: Massa
+    given-names: Francisco
+  - family-names: Lerer
+    given-names: Adam
+  - family-names: Bradbury
+    given-names: James
+  - family-names: Chanan
+    given-names: Gregory
+  - family-names: Killeen
+    given-names: Trevor
+  - family-names: Lin
+    given-names: Zeming
+  - family-names: Gimelshein
+    given-names: Natalia
+  - family-names: Antiga
+    given-names: Luca
+  - family-names: Desmaison
+    given-names: Alban
+  - family-names: Köpf
+    given-names: Andreas
+  - family-names: Yang
+    given-names: Edward
+  - family-names: DeVito
+    given-names: Zach
+  - family-names: Raison
+    given-names: Martin
+  - family-names: Tejani
+    given-names: Alykhan
+  - family-names: Chilamkurthy
+    given-names: Sasank
+  - family-names: Steiner
+    given-names: Benoit
+  - family-names: Fang
+    given-names: Lu
+  - family-names: Bai
+    given-names: Junjie
+  - family-names: Chintala
+    given-names: Soumith
+  year: 2019
+  publisher:
+    name: arXiv
+  doi: 10.48550/arXiv.1912.01703
+  notes: Runs CellBender's model.
+- type: article
+  title: 'Pyro: Deep Universal Probabilistic Programming'
+  authors:
+  - family-names: Bingham
+    given-names: Eli
+  - family-names: Chen
+    given-names: Jonathan P.
+  - family-names: Jankowiak
+    given-names: Martin
+  - family-names: Obermeyer
+    given-names: Fritz
+  - family-names: Pradhan
+    given-names: Neeraj
+  - family-names: Karaletsos
+    given-names: Theofanis
+  - family-names: Singh
+    given-names: Rohit
+  - family-names: Szerlip
+    given-names: Paul
+  - family-names: Horsfall
+    given-names: Paul
+  - family-names: Goodman
+    given-names: Noah D.
+  year: 2019
+  journal: Journal of Machine Learning Research
+  volume: 20
+  issue: '28'
+  start: '1'
+  end: '6'
+  url: https://jmlr.org/papers/v20/18-403.html
+  identifiers:
+  - type: doi
+    value: 10.48550/arXiv.1810.09538
+    description: arXiv preprint (2018)
+  notes: The probabilistic programming language CellBender is written in.
 - type: article
   title: 'SCANPY: large-scale single-cell gene expression data analysis'
   authors:
   - family-names: Wolf
     given-names: F. Alexander
+    orcid: https://orcid.org/0000-0002-8760-7838
   - family-names: Angerer
     given-names: Philipp
+    orcid: https://orcid.org/0000-0002-0369-2888
   - family-names: Theis
     given-names: Fabian J.
+    orcid: https://orcid.org/0000-0002-2419-1943
   year: 2018
   journal: Genome Biology
   volume: 19
@@ -196,14 +357,19 @@ references:
   authors:
   - family-names: Virshup
     given-names: Isaac
+    orcid: https://orcid.org/0000-0002-1710-8945
   - family-names: Rybakov
     given-names: Sergei
+    orcid: https://orcid.org/0000-0002-4944-6586
   - family-names: Theis
     given-names: Fabian J.
+    orcid: https://orcid.org/0000-0002-2419-1943
   - family-names: Angerer
     given-names: Philipp
+    orcid: https://orcid.org/0000-0002-0369-2888
   - family-names: Wolf
     given-names: F. Alexander
+    orcid: https://orcid.org/0000-0002-8760-7838
   year: 2024
   journal: Journal of Open Source Software
   volume: 9
@@ -247,8 +413,10 @@ references:
     given-names: Christoph P
   - family-names: Curatolo
     given-names: Michele
+    orcid: https://orcid.org/0000-0003-4130-6826
   - family-names: Price
     given-names: Theodore J
+    orcid: https://orcid.org/0000-0002-6971-6221
   year: 2026
   journal: Brain
   volume: 149

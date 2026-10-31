@@ -19,7 +19,8 @@ from anndata import AnnData
 log = logging.getLogger("sc-qc")
 
 # In the order they are listed in qc.csv's `reason` column.
-REASONS = ("ambient_empty", "low_counts", "high_counts", "low_genes", "high_genes", "high_top20", "high_mito", "doublet")
+REASONS = ("ambient_empty", "low_counts", "high_counts", "low_genes", "high_genes", "low_top20", "high_top20", "high_mito",
+           "doublet")
 MIN_CELLS_FOR_SCRUBLET = 100       # Scrublet's kNN and 30 PCs need more cells than this
 CELL_PROBABILITY_CUTOFF = 0.5      # CellBender's own cutoff for calling a droplet a cell
 
@@ -58,32 +59,32 @@ def _median_mad(values: np.ndarray) -> tuple[float, float]:
     return med, float(np.median(np.abs(values - med)))
 
 
-def flag(metrics: pd.DataFrame, params: dict) -> tuple[pd.DataFrame, Thresholds]:
+def flag(metrics: pd.DataFrame, params: dict, basis: np.ndarray | None = None) -> tuple[pd.DataFrame, Thresholds]:
     """One boolean column per QC reason (not doublets or empty droplets), plus the thresholds.
 
-    Counts and genes: outside median ± MADS × MAD of log1p(value), both directions (a cell far
-    above the median is a likely multiplet or a cell with abnormal capture). Top-20 share: above
-    median + MADS × MAD. Mitochondrial: pct_counts_mt above MAX_PCT_MT (a fixed cap; see README)."""
+    As in sc-best-practices: log1p(total_counts), log1p(n_genes_by_counts) and the top-20-gene share
+    outside median ± MADS × MAD, both directions. Mitochondrial: pct_counts_mt above MAX_PCT_MT (a
+    fixed cap; see README). `basis` (a boolean mask) restricts the cells the medians and MADs are
+    computed from; every cell is flagged against them."""
     k = params["MADS"]
     thr = Thresholds()
     flags = pd.DataFrame(False, index=metrics.index, columns=list(REASONS))
     for metric, low, high, log1p in (("total_counts", "low_counts", "high_counts", True),
                                      ("n_genes_by_counts", "low_genes", "high_genes", True),
-                                     ("pct_counts_in_top_20_genes", None, "high_top20", False)):
+                                     ("pct_counts_in_top_20_genes", "low_top20", "high_top20", False)):
         raw = metrics[metric].to_numpy()
         values = np.log1p(raw) if log1p else raw
-        med, mad = _median_mad(values)
+        med, mad = _median_mad(values if basis is None or not basis.any() else values[basis])
         back = np.expm1 if log1p else (lambda v: v)
         lo, hi = back(med - k * mad), back(med + k * mad)
         if mad == 0:
             log.warning("MAD of %s is 0; no cut on it", metric)
         else:
-            if low:
-                flags[low] = raw < lo
+            flags[low] = raw < lo
             flags[high] = raw > hi
         thr.rows.append({"metric": metric, "median": float(back(med)), "mad": mad, "scale": "log1p" if log1p else "linear",
-                         "lower": float(lo) if low and mad else None, "upper": float(hi) if mad else None,
-                         "rule": f"median ± {k:g} MAD" if low else f"> median + {k:g} MAD"})
+                         "lower": float(lo) if mad else None, "upper": float(hi) if mad else None,
+                         "rule": f"median ± {k:g} MAD"})
     flags["high_mito"] = metrics["pct_counts_mt"].to_numpy() > params["MAX_PCT_MT"]
     thr.rows.append({"metric": "pct_counts_mt", "median": float(metrics["pct_counts_mt"].median()), "mad": None,
                      "scale": "linear", "lower": None, "upper": params["MAX_PCT_MT"], "rule": "> MAX_PCT_MT"})

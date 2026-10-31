@@ -7,8 +7,8 @@ application:
     single-cell workflows (10x 3'/5', Flex, Multiome RNA; any tissue, human/mouse/rat). Per sample:
     removes ambient RNA with CellBender (Fleming et al. 2023) when the raw droplet matrix is linked
     (on a GPU by default), flags outlier cells by median absolute deviations of counts, genes and the
-    top-20-gene share plus a mitochondrial cap suited to nuclei (Heumos et al. 2023), detects doublets
-    with Scrublet (Wolock et al. 2019), removes the flagged cells, and log-normalizes (normalize_total +
+    top-20-gene share as in sc-best-practices (Heumos et al. 2023) plus a mitochondrial cap suited to
+    nuclei, detects doublets with Scrublet (Wolock et al. 2019), removes the flagged cells, and log-normalizes (normalize_total +
     log1p) with the counts kept in layers. Writes the filtered cells/<sample_id>.h5ad plus qc/ tables
     (every cell's metrics and why it was removed), summary.json and figures.
   type: processor
@@ -26,12 +26,13 @@ application:
     - pain
     - musculoskeletal
 runtime:
-  # Shared by both variants (below); these are the cpu variant's values. One sample at a time. See
-  # README "Runtime": without CellBender the drg-c2 demo (12 Flex samples, <= 3,000 nuclei each) runs in
-  # minutes under 1.5 GB; CellBender on CPU takes about an hour per sample and peaks at ~4 GB, so the cpu
-  # variant runs it only when asked (AMBIENT=cellbender).
+  # Shared by both variants (below); these are the cpu variant's values. One sample at a time; memory follows
+  # the largest sample (Scrublet holds its cells plus twice as many simulated doublets). Measured (amd64
+  # emulation, see README "Runtime"): 2.8 GB peak for 3,000 nuclei, 5.6 GB for 19,372 nuclei x 18,099 genes.
+  # Estimate from those two points: ~2.2 GB + ~0.17 GB per 1,000 cells, so 8 GiB covers samples up to about
+  # 35,000 cells. CellBender on CPU (AMBIENT=cellbender) peaked at 3.4-4.1 GB on the smallest demo sample.
   cpu: 4096
-  memory: 16384
+  memory: 8192
   computeTypes:
     - standard
   timeoutSeconds: 28800
@@ -74,8 +75,8 @@ parameters:
     type: number
     label: Expected doublet rate
     description: >-
-      Scrublet's expected doublet rate (scanpy's default 0.05). About 0.008 per 1,000 cells loaded for
-      10x Chromium; lower for Flex multiplexed runs.
+      Scrublet's expected doublet rate (scanpy's default 0.05). The rate grows with the number of cells
+      loaded per channel; take it from the 10x user guide of the chemistry used.
     defaultValue: 0.05
     min: 0.001
     max: 0.49
@@ -83,9 +84,10 @@ parameters:
     type: number
     label: MADs
     description: >-
-      A cell is an outlier when log1p(total counts) or log1p(genes detected) is more than MADS median
-      absolute deviations from the sample's median (either side), or its share of counts in the 20 top
-      genes is more than MADS MADs above the median. 5 is the permissive value of sc-best-practices.
+      A cell is an outlier when log1p(total counts), log1p(genes detected) or its share of counts in
+      the 20 top genes is more than MADS median absolute deviations from the sample's median, on either
+      side (medians and MADs of the cells CellBender calls cells, when it ran). 5 is the permissive
+      value of sc-best-practices.
     defaultValue: 5
     min: 0.5
     max: 50
@@ -156,7 +158,7 @@ outputs:
     description: >-
       qc/<sample_id>_qc.csv (every input cell: metrics, ambient fraction, doublet score, kept, reason),
       qc/qc_summary.csv (per sample: n_cells_before, n_cells_after, n_removed_<reason> for ambient_empty,
-      low/high_counts, low/high_genes, high_top20, high_mito, doublet; ambient_method; medians, doublet
+      low/high_counts, low/high_genes, low/high_top20, high_mito, doublet; ambient_method; medians, doublet
       threshold), qc/thresholds.csv, qc/<sample_id>_qc.png (counts, genes, % mito before/after;
       counts vs genes), qc/<sample_id>_doublets.png, qc/<sample_id>_ambient.png and
       qc/<sample_id>_cellbender_metrics.csv (when CellBender ran), qc/summary.json, qc/provenance.json.
@@ -179,8 +181,8 @@ variants:
   - id: gpu
     name: GPU (CellBender)
     description: >-
-      CUDA PyTorch on an NVIDIA GPU (T4 or newer); runs CellBender on every sample with a raw droplet
-      matrix (minutes per sample).
+      CUDA 12.6 PyTorch on an NVIDIA GPU (driver 550 or newer); runs CellBender on every sample with a raw droplet
+      matrix (not yet measured on a GPU; the image exits 1 when it finds none).
     build:
       args:
         TORCH_FLAVOUR: cuda

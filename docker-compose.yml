@@ -10,6 +10,9 @@ services:
     user: "1000"
     mem_limit: 3g
     network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,exec,size=3g
     env_file:
       - dev.env
     volumes:

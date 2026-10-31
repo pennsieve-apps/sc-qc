@@ -20,6 +20,7 @@ import math
 import os
 import platform
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -52,12 +53,12 @@ DOUBLET_MODES = ("remove", "flag")
 
 # Checked on Crossref and PubMed (see README "Citations").
 CITATIONS = {
-    "best_practices": {"doi": "10.1038/s41576-023-00586-w", "pmid": "37002403",
-                       "text": "Heumos et al. Nature Reviews Genetics 2023"},
-    "scanpy": {"doi": "10.1186/s13059-017-1382-0", "pmid": "29409532", "text": "Wolf et al. Genome Biology 2018"},
-    "anndata": {"doi": "10.21105/joss.04371", "text": "Virshup et al. Journal of Open Source Software 2024"},
-    "scrublet": {"doi": "10.1016/j.cels.2018.11.005", "pmid": "30954476", "text": "Wolock et al. Cell Systems 2019"},
-    "cellbender": {"doi": "10.1038/s41592-023-01943-7", "pmid": "37550580", "text": "Fleming et al. Nature Methods 2023"},
+    "best_practices": {"doi": "10.1038/s41576-023-00586-w", "pmid": "37002403", "text": "Heumos L et al. Nat Rev Genet 2023"},
+    "mads": {"doi": "10.1186/s13059-020-02136-7", "pmid": "32873325", "text": "Germain PL et al. Genome Biol 2020"},
+    "scanpy": {"doi": "10.1186/s13059-017-1382-0", "pmid": "29409532", "text": "Wolf FA et al. Genome Biol 2018"},
+    "anndata": {"doi": "10.21105/joss.04371", "text": "Virshup I et al. J Open Source Softw 2024"},
+    "scrublet": {"doi": "10.1016/j.cels.2018.11.005", "pmid": "30954476", "text": "Wolock SL et al. Cell Syst 2019"},
+    "cellbender": {"doi": "10.1038/s41592-023-01943-7", "pmid": "37550580", "text": "Fleming SJ et al. Nat Methods 2023"},
 }
 
 
@@ -172,10 +173,19 @@ def app_version() -> str:
         return "unknown"
 
 
-def cuda_available() -> bool:
+def gpu_check() -> tuple[bool, str]:
+    """(cuda available, description). A CUDA image (TORCH_FLAVOUR=cuda) without a usable GPU is an
+    error: the gpu variant must never silently run CellBender for hours on CPU or skip it."""
     import torch
 
-    return bool(torch.cuda.is_available())
+    if not torch.cuda.is_available():
+        return False, f"cpu (torch {torch.__version__}, CUDA build {torch.version.cuda or 'none'})"
+    try:
+        driver = subprocess.run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"],
+                                capture_output=True, text=True, timeout=30).stdout.strip() or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        driver = "unknown"
+    return True, f"cuda: {torch.cuda.get_device_name(0)}, torch.version.cuda {torch.version.cuda}, driver {driver}"
 
 
 def ambient_step(sample, adata, raw_counts, params: dict, cuda: bool, threads: int, out_qc: Path) -> dict:
@@ -194,7 +204,7 @@ def ambient_step(sample, adata, raw_counts, params: dict, cuda: bool, threads: i
         return {"status": "skipped", "note": "no GPU (AMBIENT=auto runs CellBender on a GPU only)"}
     workdir = Path(tempfile.mkdtemp(prefix=f"cellbender-{sample.sample_id}-", dir=os.environ.get("TMPDIR", "/tmp")))
     try:
-        run = A.run_cellbender(sample.raw, workdir, epochs=params["AMBIENT_EPOCHS"],
+        run = A.run_cellbender(Path(sample.raw), workdir, epochs=params["AMBIENT_EPOCHS"],
                                fpr=params["AMBIENT_FPR"], cuda=cuda, threads=threads)
         counts, probability = A.corrected_counts(adata, raw_counts, run.output)
         if run.metrics is not None:
@@ -240,7 +250,12 @@ def process_sample(sample, params: dict, cuda: bool, threads: int, out_cells: Pa
     ambient_ran = amb["status"] == "cellbender"
 
     metrics = Q.qc_metrics(counts, adata.var, adata.obs_names)
-    flags, thr = Q.flag(metrics, params)
+    # When CellBender ran, the MAD thresholds come from the droplets it calls cells (probability >= 0.5),
+    # so empty droplets in sc-prep's cell calls do not widen them.
+    basis = None
+    if amb["status"] == "cellbender":
+        basis = np.nan_to_num(amb["probability"], nan=1.0) >= Q.CELL_PROBABILITY_CUTOFF
+    flags, thr = Q.flag(metrics, params, basis)
     per_cell = metrics.copy()
     if ambient_ran:
         raw_total = np.asarray(raw_counts.sum(axis=1)).ravel().astype(float)
@@ -346,7 +361,7 @@ def process_sample(sample, params: dict, cuda: bool, threads: int, out_cells: Pa
 
 SUMMARY_COLUMNS = ["sample_id", "n_cells_before", "n_cells_after", "pct_removed",
                    *(f"n_removed_{r}" for r in ("ambient_empty", "low_counts", "high_counts", "low_genes", "high_genes",
-                                                "high_top20", "high_mito", "doublet")),
+                                                "low_top20", "high_top20", "high_mito", "doublet")),
                    "ambient_method", "ambient_status", "ambient_note", "median_ambient_fraction", "n_genes",
                    "median_counts", "median_genes", "median_pct_mt", "doublet_threshold", "n_predicted_doublets", "status"]
 THRESHOLD_COLUMNS = ["sample_id", "metric", "scale", "median", "mad", "lower", "upper", "rule"]
@@ -368,7 +383,17 @@ def main() -> int:
     except ParameterError as exc:
         log.error("%s", exc)
         return 2
-    threads = int(os.environ.get("SC_QC_THREADS") or params["THREADS"] or 2)
+    from processor.safe_inputs import cpu_threads
+
+    threads = int(os.environ.get("SC_QC_THREADS") or cpu_threads(params["THREADS"]))
+    if os.environ.get("TORCH_FLAVOUR") == "cuda" or (params["AMBIENT"] != "none"):
+        cuda, device = gpu_check()
+    else:
+        cuda, device = False, "cpu (no step uses PyTorch)"
+    if os.environ.get("TORCH_FLAVOUR") == "cuda" and not cuda:
+        log.error("this is the gpu image (TORCH_FLAVOUR=cuda) but PyTorch sees no GPU: %s; "
+                  "run the cpu variant, or a node with an NVIDIA GPU and driver >= 550", device)
+        return 1
 
     from processor.inputs import discover
 
@@ -378,10 +403,8 @@ def main() -> int:
     if not found.samples:
         log.error("no <sample_id>.h5ad found under %s", input_dir)
         return 1
-    cuda = params["AMBIENT"] != "none" and any(s.raw for s in found.samples) and cuda_available()
-    log.info("parameters: %s; threads %d (%s); device %s; %d samples, %d with a raw droplet matrix", params, threads,
-             os.environ.get("SC_QC_THREADS_SOURCE", "environment"), "cuda" if cuda else "cpu", len(found.samples),
-             sum(1 for s in found.samples if s.raw))
+    log.info("parameters: %s; threads %d; device %s; %d samples, %d with a raw droplet matrix", params, threads,
+             device, len(found.samples), sum(1 for s in found.samples if s.raw))
     out_cells, out_qc = output_dir / "cells", output_dir / "qc"
     out_cells.mkdir(parents=True, exist_ok=True)
     out_qc.mkdir(parents=True, exist_ok=True)
@@ -389,8 +412,7 @@ def main() -> int:
     rows, thr_rows, statuses, figures = [], [], [], []
     for s in found.samples:
         t = time.monotonic()
-        status = {"sample_id": s.sample_id, "file": str(s.path.relative_to(input_dir)),
-                  "raw": str(s.raw.relative_to(input_dir)) if s.raw else None}
+        status = {"sample_id": s.sample_id, "file": s.rel, "raw": s.raw_rel}
         try:
             result = process_sample(s, params, cuda, threads, out_cells, out_qc)
             rows.append(result["row"])
@@ -422,20 +444,20 @@ def main() -> int:
         "parameters": params, "figures": sorted(figures),
     }
     write_json(out_qc / "summary.json", summary)
-    citations = [CITATIONS[k] for k in ("best_practices", "scanpy", "anndata", "scrublet")]
+    citations = [CITATIONS[k] for k in ("best_practices", "mads", "scanpy", "anndata", "scrublet")]
     if ambient_ran:
         citations.append(CITATIONS["cellbender"])
     provenance = {
         "app": APP_NAME, "version": app_version(), "tools": tool_versions(), "parameters": params,
-        "threads": {"n": threads, "source": os.environ.get("SC_QC_THREADS_SOURCE", "environment")},
-        "device": "cuda" if cuda else "cpu",
+        "threads": threads,
+        "device": device,
         "method": {
             "ambient": "cellbender remove-background (its own cell-count and droplet heuristics, --epochs AMBIENT_EPOCHS, "
                        "--fpr AMBIENT_FPR) on <sample_id>.raw.h5; counts of the sc-prep cells replaced by CellBender's; "
                        "cells with CellBender cell probability < 0.5 removed (ambient_empty)",
             "metrics": "scanpy.pp.calculate_qc_metrics(qc_vars=['mt','ribo'], percent_top=[20]) on the counts after ambient removal",
-            "outliers": "log1p(total_counts), log1p(n_genes_by_counts) outside median ± MADS*MAD; pct_counts_in_top_20_genes > "
-                        "median + MADS*MAD; pct_counts_mt > MAX_PCT_MT",
+            "outliers": "log1p(total_counts), log1p(n_genes_by_counts), pct_counts_in_top_20_genes outside median ± MADS*MAD "
+                        "(medians and MADs of the CellBender-called cells when it ran); pct_counts_mt > MAX_PCT_MT",
             "doublets": "scanpy.pp.scrublet(expected_doublet_rate=DOUBLET_RATE, random_state=SEED) on the counts of the cells "
                         "that passed the outlier flags; automatic threshold",
             "normalization": "layers['counts'] = counts (after ambient removal), layers['counts_raw'] = sc-prep's counts when "
@@ -443,16 +465,16 @@ def main() -> int:
         },
         "citations": citations,
         "inputs": found.seen, "skipped": found.skipped,
-        "started": started.isoformat(), "finished": datetime.now(timezone.utc).isoformat(),
+        "started": started.isoformat(timespec="seconds"), "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "timings_seconds": {"total": round(time.monotonic() - t0, 2)},
-        "peak_rss_mb": peak_rss_mb(), "cgroup_memory_peak_mb": cgroup_peak_mb(),
+        "peak_rss_mb": peak_rss_mb(), "cgroup_peak_mb": cgroup_peak_mb(),
         "samples": statuses, "n_ok": len(ok), "n_failed": len(statuses) - len(ok),
     }
     write_json(out_qc / "provenance.json", provenance)
     write_json(out_cells / "provenance.json", provenance)
     log.info("done: %d samples (%d failed), %d -> %d cells, %.1fs, peak RSS %s MB, cgroup peak %s MB -> %s",
              len(ok), len(statuses) - len(ok), summary["n_cells_before"], summary["n_cells_after"],
-             time.monotonic() - t0, provenance["peak_rss_mb"], provenance["cgroup_memory_peak_mb"], output_dir)
+             time.monotonic() - t0, provenance["peak_rss_mb"], provenance["cgroup_peak_mb"], output_dir)
     if not ok:
         log.error("every sample failed")
         return 1

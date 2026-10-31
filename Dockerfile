@@ -1,4 +1,5 @@
-FROM python:3.12.16-slim-bookworm@sha256:623674a14ef93d052bb9b0de4dbf5f28eb578a35263838941cc8aa43213c1487
+# Base pinned by its multi-arch index digest (built for linux/amd64).
+FROM python:3.12.16-slim-bookworm@sha256:e697c81897302a4c4333bade000d98038fbb21eb064f8ee1fd42d02ebcd9d337
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -7,7 +8,8 @@ ENV PIP_NO_CACHE_DIR=1 \
 WORKDIR /processor
 
 # PyTorch build: cpu or cuda. app.yml's variants set it (cpu variant: CPU-only torch from the PyTorch CPU
-# index, no NVIDIA libraries; gpu variant: the CUDA 13.2 build, which CellBender uses with --cuda).
+# index, no NVIDIA libraries; gpu variant: torch 2.14.1+cu126 for the platform's driver-550 GPU nodes, which
+# CellBender uses with --cuda; the app exits 1 when this build finds no GPU).
 # The default is cpu for a builder that passes no build arguments.
 ARG TORCH_FLAVOUR=cpu
 
@@ -33,10 +35,11 @@ ENV PYTHONPATH="/processor" \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility \
     TORCH_FLAVOUR=${TORCH_FLAVOUR}
 
-# Build matplotlib's font cache and import the stack once as the run-time user would, so a run needs no
-# writes outside /tmp and no network.
-RUN python -c "import matplotlib.pyplot, scanpy, skimage.filters, cellbender.remove_background.run" \
-    && mkdir -p /tmp/matplotlib /tmp/numba /tmp/cache && chmod -R a+rwX /tmp/matplotlib /tmp/numba /tmp/cache
+# Check that the stack imports; nothing is cached in the image (matplotlib's font cache and numba's cache
+# are built under /tmp at run time, the only writable place besides OUTPUT_DIR).
+RUN MPLCONFIGDIR=/tmp/build-mpl NUMBA_CACHE_DIR=/tmp/build-numba \
+        python -c "import matplotlib.pyplot, scanpy, skimage.filters, cellbender.remove_background.run" \
+    && rm -rf /tmp/build-mpl /tmp/build-numba
 
 # Runs as uid 1000 on the platform; nothing here needs root. PyTorch looks the user up (getpass), so
 # uid 1000 gets a passwd entry.

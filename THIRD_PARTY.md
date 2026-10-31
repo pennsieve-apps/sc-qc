@@ -4,14 +4,14 @@ This app is Apache-2.0 (see `LICENSE`). The images it builds contain the followi
 components, installed from PyPI (PyTorch for the cpu variant from the PyTorch CPU index) at the pinned
 versions in `requirements.txt`, `requirements-cpu.txt` and `requirements-cuda.txt`; their licences apply
 to the images. Licences were read from each package's metadata at the pinned version (CellBender's also
-from the `LICENSE` file in its 0.4.0 wheel). Nothing in either image is GPL: sc-qc does no clustering, so
-neither igraph nor leidenalg is installed.
+from the `LICENSE` file in its 0.4.0 wheel). No GPL Python packages are installed (sc-qc does no
+clustering, so neither igraph nor leidenalg is); the Debian base layer contains GPL system tools.
 
 | Component | What | Licence | Source |
 |---|---|---|---|
 | CellBender 0.4.0 | `remove-background`: ambient RNA removal and cell probabilities; its `downstream.anndata_from_h5` reads the result. Installed without its Jupyter report extras. | BSD-3-Clause (Broad Institute) | https://github.com/broadinstitute/CellBender |
-| PyTorch 2.15.0 (`+cpu` in the cpu image, the CUDA 13.2 build in the gpu image) | CellBender's model. | PyTorch licence (package metadata: Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND …, BSD-style parts) | https://pytorch.org |
-| NVIDIA CUDA runtime wheels (`nvidia-*`, `cuda-toolkit`, `cuda-bindings`, `cuda-pathfinder`), Triton 3.9.0 | gpu image only: the CUDA libraries PyTorch loads. | NVIDIA CUDA Toolkit EULA (redistributable runtime components); Triton MIT | https://pypi.org/project/nvidia-cublas/ |
+| PyTorch 2.14.1 (`+cpu` in the cpu image, `+cu126` in the gpu image) | CellBender's model. | PyTorch licence (package metadata: Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND …, BSD-style parts) | https://pytorch.org |
+| NVIDIA CUDA 12.6 runtime wheels (`nvidia-*-cu12`, `cuda-toolkit`, `cuda-bindings`, `cuda-pathfinder`), Triton 3.8.0 | gpu image only: the CUDA libraries PyTorch loads. | NVIDIA CUDA Toolkit EULA (redistributable runtime components); Triton MIT | https://pypi.org/project/nvidia-cublas/ |
 | Pyro 1.9.2, pyro-api 0.1.2, opt_einsum 3.4.0 | Probabilistic programming used by CellBender. | Apache-2.0 (opt_einsum MIT) | https://pyro.ai |
 | scanpy 1.12.5 | `calculate_qc_metrics`, `scrublet` (its port of Scrublet), `normalize_total`, `log1p`. | BSD-3-Clause | https://github.com/scverse/scanpy |
 | anndata 0.13.4 | Reads and writes `.h5ad`. | BSD-3-Clause | https://github.com/scverse/anndata |

@@ -1,5 +1,6 @@
 cff-version: "1.2.0"
-message: If you use this app, please cite it and the works it builds on, listed under references.
+message: >-
+  If you use this app, please cite the work it implements (preferred-citation), this release, and Pennsieve (RRID:SCR_021677); the other works it builds on are listed under references.
 type: software
 title: Single-cell QC
 abstract: Per-sample quality control of single-cell and single-nucleus RNA-seq (10x 3'/5', Flex, Multiome
@@ -24,6 +25,116 @@ keywords:
 - quality-control
 - ambient-rna
 - doublet-detection
+# The work this app implements; the release report's "How to cite" puts it first.
+preferred-citation:
+  type: article
+  title: Best practices for single-cell analysis across modalities
+  authors:
+  - family-names: Heumos
+    given-names: Lukas
+    orcid: https://orcid.org/0000-0002-8937-3457
+  - family-names: Schaar
+    given-names: Anna C.
+    orcid: https://orcid.org/0000-0003-1063-005X
+  - family-names: Lance
+    given-names: Christopher
+    orcid: https://orcid.org/0000-0002-1275-9802
+  - family-names: Litinetskaya
+    given-names: Anastasia
+  - family-names: Drost
+    given-names: Felix
+    orcid: https://orcid.org/0000-0002-2600-4048
+  - family-names: Zappia
+    given-names: Luke
+    orcid: https://orcid.org/0000-0001-7744-8565
+  - family-names: Lücken
+    given-names: Malte D.
+    orcid: https://orcid.org/0000-0001-7464-7921
+  - family-names: Strobl
+    given-names: Daniel C.
+  - family-names: Henao
+    given-names: Juan
+  - family-names: Curion
+    given-names: Fabiola
+    orcid: https://orcid.org/0000-0003-2502-8803
+  - name: Single-cell Best Practices Consortium
+  - family-names: Aliee
+    given-names: Hananeh
+  - family-names: Ansari
+    given-names: Meshal
+  - family-names: Badia-i-Mompel
+    given-names: Pau
+  - family-names: Büttner
+    given-names: Maren
+  - family-names: Dann
+    given-names: Emma
+  - family-names: Dimitrov
+    given-names: Daniel
+  - family-names: Dony
+    given-names: Leander
+  - family-names: Frishberg
+    given-names: Amit
+  - family-names: He
+    given-names: Dongze
+  - family-names: Hediyeh-zadeh
+    given-names: Soroor
+  - family-names: Hetzel
+    given-names: Leon
+  - family-names: Ibarra
+    given-names: Ignacio L.
+  - family-names: Jones
+    given-names: Matthew G.
+  - family-names: Lotfollahi
+    given-names: Mohammad
+  - family-names: Martens
+    given-names: Laura D.
+  - family-names: Müller
+    given-names: Christian L.
+  - family-names: Nitzan
+    given-names: Mor
+  - family-names: Ostner
+    given-names: Johannes
+  - family-names: Palla
+    given-names: Giovanni
+  - family-names: Patro
+    given-names: Rob
+  - family-names: Piran
+    given-names: Zoe
+  - family-names: Ramírez-Suástegui
+    given-names: Ciro
+  - family-names: Saez-Rodriguez
+    given-names: Julio
+  - family-names: Sarkar
+    given-names: Hirak
+  - family-names: Schubert
+    given-names: Benjamin
+  - family-names: Sikkema
+    given-names: Lisa
+  - family-names: Srivastava
+    given-names: Avi
+  - family-names: Tanevski
+    given-names: Jovan
+  - family-names: Virshup
+    given-names: Isaac
+    orcid: https://orcid.org/0000-0002-1710-8945
+  - family-names: Weiler
+    given-names: Philipp
+  - family-names: Schiller
+    given-names: Herbert B.
+  - family-names: Theis
+    given-names: Fabian J.
+    orcid: https://orcid.org/0000-0002-2419-1943
+  year: 2023
+  journal: Nature Reviews Genetics
+  volume: 24
+  issue: '8'
+  start: '550'
+  end: '572'
+  doi: 10.1038/s41576-023-00586-w
+  identifiers:
+  - type: other
+    value: pmid:37002403
+    description: PubMed ID
 references:
 - type: article
   title: Best practices for single-cell analysis across modalities

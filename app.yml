@@ -22,9 +22,6 @@ application:
     - ambient-rna
     - doublet-detection
     - normalization
-    - neuroscience
-    - pain
-    - musculoskeletal
 runtime:
   # Shared by both variants (below); these are the cpu variant's values. One sample at a time; memory follows
   # the largest sample (Scrublet holds its cells plus twice as many simulated doublets). Measured (amd64
